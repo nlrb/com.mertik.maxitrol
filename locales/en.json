@@ -1,0 +1,6 @@
+{
+	"pair": {
+		"title": "Add a fireplace with your remote",
+		"remote": "Press the 'Up' or 'Down' button of your fireplace (Mertik Maxitrol) remote. A device will be added to Homey once the signal is found."
+	}
+}

@@ -1,0 +1,83 @@
+{
+    "id": "com.mertik.maxitrol",
+    "name": {
+        "en": "Mertik Maxitrol"
+    },
+    "version": "0.0.1",
+    "compatibility": ">=0.10",
+    "author": {
+        "name": "Ramón Baas"
+    },
+	"permissions": [
+		"homey:wireless:433"
+	],
+	"signals": {
+		"433": {
+			"Mertik": {
+				"sof": [ 320, 400 ],
+				"eof": [],
+				"words": [
+					[ 800, 360 ],
+					[ 450, 710 ]
+				],
+				"interval": 18000,
+				"repetitions": 10,
+				"sensitivity": 0.9,
+				"minimalLength": 12,
+				"maximalLength": 12
+			}
+		}
+	},
+	"capabilities": {
+		"updown": {
+			"type": "enum",
+			"title": { "en": "Fireplace", "nl": "Openhaard" },
+			"values": [
+				{ "id": "up", "title": { "en": "Brighten", "nl": "Feller" } }, 
+				{ "id": "stop", "title": { "en": "Stop", "nl": "Uit" } },
+				{ "id": "down", "title": { "en": "Dim", "nl": "Zwakker" } }
+			],
+			"getable": false,
+			"setable": true
+		}
+	},
+	"drivers": [{
+		"id": "fireplace",
+		"name": {
+			"en": "Fireplace",
+			"nl": "Openhaard"
+		},
+		"class": "heater",
+		"capabilities": [ "onoff", "dim", "updown" ],
+		"images": {
+			"large": "drivers/fireplace/assets/images/large.jpg",
+			"small": "drivers/fireplace/assets/images/small.jpg"
+		},
+		"mobile": {
+			"components": [
+				{
+					"id": "icon",
+					"capabilities": [ "onoff" ]
+				},
+				{
+					"id": "ternary",
+					"capabilities": [ "updown" ],
+					"options": {
+						"values": {
+							"top": "up",
+							"middle": "stop",
+							"bottom": "down"
+						}
+					}
+				},
+				{
+					"id": "slider",
+					"capabilities": [ "dim" ]
+				}
+			]
+		},
+		"pair": [{
+			"id": "find_remote"
+		}]
+	}]
+}
