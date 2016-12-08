@@ -42,12 +42,13 @@ function updateState(did, data) {
 	devices[did].driver.realtime(devices[did].device_data, 'dim', data.level);
 }
 
-function sendCommand(channel, cmd) {
-	for (var s in commands) {
+function sendCommand(channel, type, cmd) {
+	for (let s in commands) {
 		if (commands[s] == cmd) {
 			Homey.log('Sending', cmd, 'for channel', channel);
-			var bits = [ 1, 0, 1, 1];
-			for (var i = 3; i >=0; i--) {
+			let bits = [ 1, 0, 1, 1];
+			let clen = (type == 2 ? 11 : 3);
+			for (var i = clen; i >= 0; i--) {
 				bits.push((channel & Math.pow(2, i)) > 0 ? 1 : 0);
 			}
 			for (var i = 0; i < s.length; i++) {
@@ -63,10 +64,17 @@ function parseMertik(payload) {
 	var valid = bits.slice(0, 4) == '1011';
 	Homey.log(bits, valid);
 	if (valid) {
-		var channel = parseInt(bits.slice(4, 8), 2).toString(10);
+		let channel, type;
+		if (payload.length == 20) {
+			channel = parseInt(bits.slice(4, 16), 2).toString(10);
+			type = 2;
+		} else {
+			channel = parseInt(bits.slice(4, 8), 2).toString(10);
+			type = 1;
+		}
 		var cmd = bits.slice(-4);
-		Homey.log('Channel', channel, 'Command', commands[cmd] || 'UNKNOWN');
-		Homey.emit('remote_found', channel);
+		Homey.log('Channel', channel, 'Type', type, 'Command', commands[cmd] || 'UNKNOWN');
+		Homey.emit('remote_found', { channel: channel, type: type });
 	}
 }
 
@@ -113,7 +121,7 @@ var self = module.exports = {
 				if (devices[did] != null) {
 					if (new_state == false || (new_state == true && devices[did].data.on != true)) {
 						clearInterval(timer);
-						sendCommand(device_data.channel, (new_state ? 'RUN UP' : 'RUN DOWN'));
+						sendCommand(device_data.channel, device_data.type, (new_state ? 'RUN UP' : 'RUN DOWN'));
 						updateState(did, { on: new_state, level: new_state ? 1 : 0 });
 					}
 				}

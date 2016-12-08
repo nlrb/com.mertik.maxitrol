@@ -1,10 +1,11 @@
 <script type="text/javascript">
 	Homey.setTitle( __('pair.title') );
 
-	Homey.on('remote_found', function(channel) {
+	Homey.on('remote_found', function(result) {
+		console.log(result);
 		var device = {
-			data: {	id: 'Mertik:' + channel, channel: channel },
-			name: 'Mertik ' + channel
+			data: {	id: 'Mertik:' + result.channel, channel: result.channel, type: result.type },
+			name: 'Mertik ' + result.channel
 		}
 		Homey.addDevice(device, function(err, result) {
 			if (err) { 

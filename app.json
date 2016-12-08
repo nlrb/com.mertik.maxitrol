@@ -24,7 +24,7 @@
 				"repetitions": 10,
 				"sensitivity": 0.9,
 				"minimalLength": 12,
-				"maximalLength": 12
+				"maximalLength": 20
 			}
 		}
 	},
