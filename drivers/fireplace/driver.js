@@ -46,7 +46,7 @@ function sendCommand(channel, type, cmd) {
 	for (let s in commands) {
 		if (commands[s] == cmd) {
 			Homey.log('Sending', cmd, 'for channel', channel);
-			let bits = [ 1, 0, 1, 1];
+			let bits = (type == 2 ? [1,1,1,1,0,1,1] : [1,1,0,1,1]);
 			let clen = (type == 2 ? 11 : 3);
 			for (var i = clen; i >= 0; i--) {
 				bits.push((channel & Math.pow(2, i)) > 0 ? 1 : 0);
@@ -60,16 +60,17 @@ function sendCommand(channel, type, cmd) {
 }
 
 function parseMertik(payload) {
-	var bits = payload.join('');
-	var valid = bits.slice(0, 4) == '1011';
-	Homey.log(bits, valid);
-	if (valid) {
+	let bits = payload.join('');
+	let valid1 = (bits.slice(1, 5) == '1011' && payload.length == 13);
+	let valid2 = (bits.slice(0, 7) == '1111011' && payload.length == 23);
+	Homey.log(bits, valid1, valid2);
+	if (valid1 || valid2) {
 		let channel, type;
-		if (payload.length == 20) {
+		if (valid2) {
 			channel = parseInt(bits.slice(4, 16), 2).toString(10);
 			type = 2;
 		} else {
-			channel = parseInt(bits.slice(4, 8), 2).toString(10);
+			channel = parseInt(bits.slice(5, 9), 2).toString(10);
 			type = 1;
 		}
 		var cmd = bits.slice(-4);
