@@ -42,18 +42,26 @@ function updateState(did, data) {
 	devices[did].driver.realtime(devices[did].device_data, 'dim', data.level);
 }
 
+const versions = [
+	{}, // skip 0 for backward compatibility
+	{ start: 1, len: 13, sof: [0,1,0,1,1] },
+	{ start: 0, len: 23, sof: [1,1,1,1,0,1,1] },
+	{ start: 0, len: 23, sof: [1,1,0,0,0,0,1,1,0,1] }
+]
+
 function sendCommand(channel, type, cmd) {
 	for (let s in commands) {
 		if (commands[s] == cmd) {
 			Homey.log('Sending', cmd, 'for channel', channel);
-			let bits = (type == 2 ? [1,1,1,1,0,1,1] : [1,1,0,1,1]);
-			let clen = (type == 2 ? 11 : 3);
-			for (var i = clen; i >= 0; i--) {
+			let bits = versions[type].sof.slice(); // copy array
+			let clen = versions[type].len - versions[type].sof.length - 5;
+			for (let i = clen; i >= 0; i--) {
 				bits.push((channel & Math.pow(2, i)) > 0 ? 1 : 0);
 			}
-			for (var i = 0; i < s.length; i++) {
-				bits.push(s.charAt(i) == '1' ? 1 : 0);
+			for (let i = 0; i < s.length; i++) {
+				bits.push(s[i] == '1' ? 1 : 0);
 			}
+			Homey.log('Sending', bits);
 			signal.tx(bits, Homey.log);
 		}
 	}
@@ -61,21 +69,25 @@ function sendCommand(channel, type, cmd) {
 
 function parseMertik(payload) {
 	let bits = payload.join('');
-	let valid1 = (bits.slice(1, 5) == '1011' && payload.length == 13);
-	let valid2 = (bits.slice(0, 7) == '1111011' && payload.length == 23);
-	Homey.log(bits, valid1, valid2);
-	if (valid1 || valid2) {
-		let channel, type;
-		if (valid2) {
-			channel = parseInt(bits.slice(4, 16), 2).toString(10);
-			type = 2;
-		} else {
-			channel = parseInt(bits.slice(5, 9), 2).toString(10);
-			type = 1;
+	Homey.log(bits.length, bits);
+	let valid = 0;
+	for (let i = 1; i < versions.length; i++) {
+		let check = bits.slice(-versions[i].len);
+		let s = versions[i].start;
+		let p = versions[i].sof.slice(s).join('');
+		if (check.slice(s, 1 + p.length) == p && check.length == versions[i].len) {
+			valid = i;
+			bits = check;
 		}
-		var cmd = bits.slice(-4);
-		Homey.log('Channel', channel, 'Type', type, 'Command', commands[cmd] || 'UNKNOWN');
-		Homey.emit('remote_found', { channel: channel, type: type });
+	}
+	Homey.log(bits.length, bits, valid);
+	if (valid > 0) {
+		let s = versions[valid].sof.length;
+		let e = versions[valid].len - 4;
+		let channel = parseInt(bits.slice(s, e), 2).toString(10);
+		let cmd = bits.slice(-4);
+		Homey.log('Channel', channel, 'Type', valid, 'Command', commands[cmd] || 'UNKNOWN');
+		Homey.emit('remote_found', { channel: channel, type: valid });
 	}
 }
 
