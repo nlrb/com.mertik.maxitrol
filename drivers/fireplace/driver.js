@@ -46,7 +46,7 @@ const versions = [
 	{}, // skip 0 for backward compatibility
 	{ start: 1, len: 13, sof: [0,1,0,1,1] },
 	{ start: 0, len: 23, sof: [1,1,1,1,0,1,1] },
-	{ start: 0, len: 23, sof: [1,1,0,0,0,0,1,1,0,1] }
+	{ start: 0, len: 22, sof: [1,0,0,0,0,1,1,0,1] }
 ]
 
 function sendCommand(channel, type, cmd) {
