@@ -3,8 +3,8 @@
     "name": {
         "en": "Mertik Maxitrol"
     },
-    "version": "0.0.1",
-    "compatibility": ">=0.10",
+    "version": "0.0.2",
+    "compatibility": ">=1.2.0",
     "author": {
         "name": "Ramón Baas"
     },
@@ -17,14 +17,14 @@
 				"sof": [],
 				"eof": [],
 				"words": [
-					[ 800, 360 ],
-					[ 450, 710 ]
+					[ 650, 350 ],
+					[ 300, 700 ]
 				],
 				"interval": 18000,
 				"repetitions": 10,
-				"sensitivity": 0.9,
-				"minimalLength": 13,
-				"maximalLength": 23
+				"sensitivity": 0.4,
+				"minimalLength": 12,
+				"maximalLength": 22
 			}
 		}
 	},
@@ -33,7 +33,7 @@
 			"type": "enum",
 			"title": { "en": "Fireplace", "nl": "Openhaard" },
 			"values": [
-				{ "id": "up", "title": { "en": "Brighten", "nl": "Feller" } }, 
+				{ "id": "up", "title": { "en": "Brighten", "nl": "Feller" } },
 				{ "id": "stop", "title": { "en": "Stop", "nl": "Uit" } },
 				{ "id": "down", "title": { "en": "Dim", "nl": "Zwakker" } }
 			],

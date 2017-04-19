@@ -1,7 +1,7 @@
 "use strict";
 
 /*
-Copyright (c) 2016 Ramón Baas
+Copyright (c) 2017 RamÃ³n Baas
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
@@ -22,7 +22,6 @@ const commands = {
 
 var signal;
 var devices = {};
-var timer;
 
 var addDevice = (driver, device_data, name) => {
 	if (devices[device_data.id] == null) {
@@ -44,17 +43,18 @@ function updateState(did, data) {
 
 const versions = [
 	{}, // skip 0 for backward compatibility
-	{ start: 1, len: 13, sof: [0,1,0,1,1] },
-	{ start: 0, len: 23, sof: [1,1,1,1,0,1,1] },
-	{ start: 0, len: 22, sof: [1,0,0,0,0,1,1,0,1] }
+	{ start: 1, len: 12, sof: [0,1,0,1,1] },
+	{ start: 0, len: 22, sof: [1,1,1,1,0,1,1] },
+	{ start: 0, len: 21, sof: [1,0,0,0,0,1,1,0,1] }
 ]
 
 function sendCommand(channel, type, cmd) {
+	console.log(channel, type, cmd);
 	for (let s in commands) {
 		if (commands[s] == cmd) {
 			Homey.log('Sending', cmd, 'for channel', channel);
 			let bits = versions[type].sof.slice(); // copy array
-			let clen = versions[type].len - versions[type].sof.length - 5;
+			let clen = versions[type].len - versions[type].sof.length - 4;
 			for (let i = clen; i >= 0; i--) {
 				bits.push((channel & Math.pow(2, i)) > 0 ? 1 : 0);
 			}
@@ -69,7 +69,7 @@ function sendCommand(channel, type, cmd) {
 
 function parseMertik(payload) {
 	let bits = payload.join('');
-	Homey.log(bits.length, bits);
+	//Homey.log(bits.length, bits);
 	let valid = 0;
 	for (let i = 1; i < versions.length; i++) {
 		let check = bits.slice(-versions[i].len);
@@ -83,9 +83,9 @@ function parseMertik(payload) {
 	Homey.log(bits.length, bits, valid);
 	if (valid > 0) {
 		let s = versions[valid].sof.length;
-		let e = versions[valid].len - 4;
+		let e = versions[valid].len - 3;
 		let channel = parseInt(bits.slice(s, e), 2).toString(10);
-		let cmd = bits.slice(-4);
+		let cmd = bits.slice(-3) + '0'; // we don't receive the last bit, assume 0
 		Homey.log('Channel', channel, 'Type', valid, 'Command', commands[cmd] || 'UNKNOWN');
 		Homey.emit('remote_found', { channel: channel, type: valid });
 	}
@@ -100,7 +100,7 @@ var self = module.exports = {
 		signal.register(function(err, success) {
 			if (err != null) {
 				Homey.log('Signal Mertik; err', err, 'success', success);
-			} else { 
+			} else {
 				Homey.log('Signal Mertik registered.')
 				// Register data receive event
 				signal.on('payload', function(payload, first) {
@@ -114,11 +114,11 @@ var self = module.exports = {
 				addDevice(self, device_data, name);
 			});
 		});
-		
+
 		// we're ready
 		callback();
 	},
-	
+
 	capabilities: {
 		onoff: {
 			get: function(device_data, callback) {
@@ -133,7 +133,6 @@ var self = module.exports = {
 				var did = device_data.id;
 				if (devices[did] != null) {
 					if (new_state == false || (new_state == true && devices[did].data.on != true)) {
-						clearInterval(timer);
 						sendCommand(device_data.channel, device_data.type, (new_state ? 'RUN UP' : 'RUN DOWN'));
 						updateState(did, { on: new_state, level: new_state ? 1 : 0 });
 					}
@@ -153,7 +152,6 @@ var self = module.exports = {
 				var did = device_data.id;
 				if (devices[did] != null) {
 					Homey.log('Dim', new_state);
-					clearInterval(timer);
 					if (new_state == 0) {
 						self.capabilities.onoff.set(device_data, false, function(err, result) {});
 					} if (new_state == 1) {
@@ -168,23 +166,19 @@ var self = module.exports = {
 							cmd = 'DOWN';
 							count = -count;
 						}
-						timer = setInterval(function() {
-							sendCommand(device_data.channel, cmd);
+						while (count > 0) {
+							sendCommand(device_data.channel, device_data.type, cmd);
 							count--;
-							if (count == 0) {
-								clearInterval(timer);
-							}
-						}, 150);
+						};
 						updateState(did, { on: true, level: new_state });
 					}
-				}			
+				}
 			}
 		},
 		updown: {
 			set: function(device_data, new_state, callback) {
 				var did = device_data.id;
 				if (devices[did] != null) {
-					clearInterval(timer);
 					if (new_state == 'stop') {
 						self.capabilities.onoff.set(device_data, false, function(err, result) {});
 					} else {
@@ -192,7 +186,7 @@ var self = module.exports = {
 						var cmd = new_state == 'up' ? 'UP' : 'DOWN';
 						var newlevel = new_state == 'up' ? level + 0.04 : level - 0.04;
 						if (newlevel > 0 && newlevel < 1) {
-							sendCommand(device_data.channel, cmd);
+							sendCommand(device_data.channel, device_data.type, cmd);
 							updateState(did, { on: true, level: newlevel });
 						} else if (newlevel >= 1) {
 							self.capabilities.onoff.set(device_data, true, function(err, result) {});
@@ -213,20 +207,20 @@ var self = module.exports = {
 
 		callback();
 	},
-	
+
 	renamed: function(device_data, new_name) {
 		if (devices[device_data.id] != null) {
 			Homey.log('Renaming', device_data, 'to', new_name);
 			devices[device_data.id].name = new_name;
 		}
 	},
-	
+
 	deleted: function(device_data) {
 		// Run when the user has deleted the device from Homey
 		Homey.log('Deleting', device_data);
 		delete devices[device_data.id];
 	},
-	
+
 	pair: function(socket) {
 		Homey.log('Fireplace remote pairing has started...');
 
