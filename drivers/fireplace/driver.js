@@ -17,7 +17,8 @@ const commands = {
 	'0100': 'UP',
 	'0011': 'RUN DOWN',
 	'0101': 'RUN UP',
-	'1100': 'OFF',
+	'1100': 'ON',
+	'1000': 'OFF'
 }
 
 var signal;
@@ -43,9 +44,9 @@ function updateState(did, data) {
 
 const versions = [
 	{}, // skip 0 for backward compatibility
-	{ start: 1, len: 12, sof: [0,1,0,1,1] },
+	{ start: 1, len: 12, sof: [0,1,0,1,1] }, // G6R-H4T
 	{ start: 0, len: 22, sof: [1,1,1,1,0,1,1] },
-	{ start: 0, len: 21, sof: [1,0,0,0,0,1,1,0,1] }
+	{ start: 0, len: 21, sof: [1,0,0,0,0,1,1,0,1] } // G6R-H4T5
 ]
 
 function sendCommand(channel, type, cmd) {
@@ -61,6 +62,9 @@ function sendCommand(channel, type, cmd) {
 			for (let i = 0; i < s.length; i++) {
 				bits.push(s[i] == '1' ? 1 : 0);
 			}
+			if (type > 1) {
+				bits = [0].concat(bits); // send wake-up 0 before command
+			}
 			Homey.log('Sending', bits);
 			signal.tx(bits, Homey.log);
 		}
@@ -75,7 +79,7 @@ function parseMertik(payload) {
 		let check = bits.slice(-versions[i].len);
 		let s = versions[i].start;
 		let p = versions[i].sof.slice(s).join('');
-		if (check.slice(s, versions[i].start + p.length) == p && check.length == versions[i].len) {
+		if (check.slice(s, 1 + p.length) == p && check.length == versions[i].len) {
 			valid = i;
 			bits = check;
 		}
@@ -133,7 +137,7 @@ var self = module.exports = {
 				var did = device_data.id;
 				if (devices[did] != null) {
 					if (new_state == false || (new_state == true && devices[did].data.on != true)) {
-						sendCommand(device_data.channel, device_data.type, (new_state ? 'RUN UP' : 'RUN DOWN'));
+						sendCommand(device_data.channel, device_data.type, (new_state ? 'ON' : 'OFF'));
 						updateState(did, { on: new_state, level: new_state ? 1 : 0 });
 					}
 				}
@@ -152,10 +156,9 @@ var self = module.exports = {
 				var did = device_data.id;
 				if (devices[did] != null) {
 					Homey.log('Dim', new_state);
-					if (new_state == 0) {
-						self.capabilities.onoff.set(device_data, false, function(err, result) {});
-					} if (new_state == 1) {
-						self.capabilities.onoff.set(device_data, true, function(err, result) {});
+					if (new_state === 0 || new_state === 1) {
+						sendCommand(device_data.channel, device_data.type, (new_state ? 'RUN UP' : 'RUN DOWN'));
+						updateState(did, { on: new_state, level: new_state ? 1 : 0 });
 					} else {
 						var current = devices[did].data.level;
 						var count = (new_state - current) * 25; // nr of cmds to send
