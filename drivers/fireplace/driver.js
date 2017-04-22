@@ -75,7 +75,7 @@ function parseMertik(payload) {
 		let check = bits.slice(-versions[i].len);
 		let s = versions[i].start;
 		let p = versions[i].sof.slice(s).join('');
-		if (check.slice(s, 1 + p.length) == p && check.length == versions[i].len) {
+		if (check.slice(s, versions[i].start + p.length) == p && check.length == versions[i].len) {
 			valid = i;
 			bits = check;
 		}
