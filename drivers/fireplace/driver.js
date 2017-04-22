@@ -79,7 +79,7 @@ function parseMertik(payload) {
 		let check = bits.slice(-versions[i].len);
 		let s = versions[i].start;
 		let p = versions[i].sof.slice(s).join('');
-		if (check.slice(s, 1 + p.length) == p && check.length == versions[i].len) {
+		if (check.slice(s, versions[i].start + p.length) == p && check.length == versions[i].len) {
 			valid = i;
 			bits = check;
 		}
@@ -183,7 +183,7 @@ var self = module.exports = {
 				var did = device_data.id;
 				if (devices[did] != null) {
 					if (new_state == 'stop') {
-						self.capabilities.onoff.set(device_data, false, function(err, result) {});
+						self.capabilities.dim.set(device_data, 0, function(err, result) {});
 					} else {
 						var level = devices[did].data.level;
 						var cmd = new_state == 'up' ? 'UP' : 'DOWN';
@@ -192,9 +192,9 @@ var self = module.exports = {
 							sendCommand(device_data.channel, device_data.type, cmd);
 							updateState(did, { on: true, level: newlevel });
 						} else if (newlevel >= 1) {
-							self.capabilities.onoff.set(device_data, true, function(err, result) {});
+							self.capabilities.dim.set(device_data, 1, function(err, result) {});
 						} else {
-							self.capabilities.onoff.set(device_data, false, function(err, result) {});
+							self.capabilities.dim.set(device_data, 0, function(err, result) {});
 						}
 					}
 				}
