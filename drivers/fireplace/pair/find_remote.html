@@ -4,8 +4,8 @@
 	Homey.on('remote_found', function(result) {
 		console.log(result);
 		var device = {
-			data: {	id: 'Mertik:' + result.channel, channel: result.channel, type: result.type },
-			name: 'Mertik ' + result.channel
+			data: {	id: 'Mertik:' + result.signature, signature: result.signature },
+			name: 'Mertik Maxitrol'
 		}
 		Homey.addDevice(device, function(err, result) {
 			if (err) { 

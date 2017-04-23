@@ -42,30 +42,23 @@ function updateState(did, data) {
 	devices[did].driver.realtime(devices[did].device_data, 'dim', data.level);
 }
 
-const versions = [
-	{}, // skip 0 for backward compatibility
-	{ start: 1, len: 12, sof: [0,1,0,1,1] }, // G6R-H4T
-	{ start: 0, len: 22, sof: [1,1,1,1,0,1,1] },
-	{ start: 0, len: 21, sof: [1,0,0,0,0,1,1,0,1] } // G6R-H4T5
-]
+const validLength = {
+	11: true,
+	21: true
+}
 
-function sendCommand(channel, type, cmd) {
-	console.log(channel, type, cmd);
+function sendCommand(signature, cmd) {
+	Homey.log(signature, cmd);
 	for (let s in commands) {
-		if (commands[s] == cmd) {
-			Homey.log('Sending', cmd, 'for channel', channel);
-			let bits = versions[type].sof.slice(); // copy array
-			let clen = versions[type].len - versions[type].sof.length - 4;
-			for (let i = clen; i >= 0; i--) {
-				bits.push((channel & Math.pow(2, i)) > 0 ? 1 : 0);
+		if (commands[s] === cmd) {
+			let bits = [];
+			for (let i = 0; i < signature.length; i++) {
+				bits.push(signature[i] === '1' ? 1 : 0);
 			}
 			for (let i = 0; i < s.length; i++) {
-				bits.push(s[i] == '1' ? 1 : 0);
+				bits.push(s[i] === '1' ? 1 : 0);
 			}
-			if (type > 1) {
-				bits = [0].concat(bits); // send wake-up 0 before command
-			}
-			Homey.log('Sending', bits);
+			Homey.log('Sending command', cmd, 'as', bits);
 			signal.tx(bits, Homey.log);
 		}
 	}
@@ -73,25 +66,26 @@ function sendCommand(channel, type, cmd) {
 
 function parseMertik(payload) {
 	let bits = payload.join('');
-	//Homey.log(bits.length, bits);
-	let valid = 0;
-	for (let i = 1; i < versions.length; i++) {
-		let check = bits.slice(-versions[i].len);
-		let s = versions[i].start;
-		let p = versions[i].sof.slice(s).join('');
-		if (check.slice(s, versions[i].start + p.length) == p && check.length == versions[i].len) {
-			valid = i;
-			bits = check;
-		}
+	Homey.log(bits.length, bits);
+	// New alogrithm to determine a valid signal:
+	// 1. It should be of known length
+	// 2. There should be '011' in the first 8 bits (somewhere)
+	// 3. It should end with a valid command (up/down)
+	// BTW: we don't receive the last bit (argh!), assume 0
+	let checkValid = (x) => (validLength[x.length]) && (x.slice(0, 8).indexOf('011') >= 0) && (commands[x.slice(-3)+'0'] !== undefined);
+	let valid = checkValid(bits);
+	if (!valid) {
+		// Sometimes the wake-up signal is identified as a 1 bit.
+		// Hence try matching again without the first bit.
+		bits = bits.slice(1);
+		valid = checkValid(bits);
 	}
 	Homey.log(bits.length, bits, valid);
-	if (valid > 0) {
-		let s = versions[valid].sof.length;
-		let e = versions[valid].len - 3;
-		let channel = parseInt(bits.slice(s, e), 2).toString(10);
-		let cmd = bits.slice(-3) + '0'; // we don't receive the last bit, assume 0
-		Homey.log('Channel', channel, 'Type', valid, 'Command', commands[cmd] || 'UNKNOWN');
-		Homey.emit('remote_found', { channel: channel, type: valid });
+	if (valid) {
+		let signature = '0' + bits.slice(0, -3); // add wake-up bit
+		let cmd = bits.slice(-3) + '0';
+		Homey.log('Command', commands[cmd], 'Signatue', signature);
+		Homey.emit('remote_found', { signature: signature });
 	}
 }
 
@@ -137,7 +131,7 @@ var self = module.exports = {
 				var did = device_data.id;
 				if (devices[did] != null) {
 					if (new_state == false || (new_state == true && devices[did].data.on != true)) {
-						sendCommand(device_data.channel, device_data.type, (new_state ? 'ON' : 'OFF'));
+						sendCommand(device_data.signature, (new_state ? 'ON' : 'OFF'));
 						updateState(did, { on: new_state, level: new_state ? 1 : 0 });
 					}
 				}
@@ -157,7 +151,7 @@ var self = module.exports = {
 				if (devices[did] != null) {
 					Homey.log('Dim', new_state);
 					if (new_state === 0 || new_state === 1) {
-						sendCommand(device_data.channel, device_data.type, (new_state ? 'RUN UP' : 'RUN DOWN'));
+						sendCommand(device_data.signature, (new_state ? 'RUN UP' : 'RUN DOWN'));
 						updateState(did, { on: new_state, level: new_state ? 1 : 0 });
 					} else {
 						var current = devices[did].data.level;
@@ -170,7 +164,7 @@ var self = module.exports = {
 							count = -count;
 						}
 						while (count > 0) {
-							sendCommand(device_data.channel, device_data.type, cmd);
+							sendCommand(device_data.signature, cmd);
 							count--;
 						};
 						updateState(did, { on: true, level: new_state });
@@ -189,7 +183,7 @@ var self = module.exports = {
 						var cmd = new_state == 'up' ? 'UP' : 'DOWN';
 						var newlevel = new_state == 'up' ? level + 0.04 : level - 0.04;
 						if (newlevel > 0 && newlevel < 1) {
-							sendCommand(device_data.channel, device_data.type, cmd);
+							sendCommand(device_data.signature, cmd);
 							updateState(did, { on: true, level: newlevel });
 						} else if (newlevel >= 1) {
 							self.capabilities.dim.set(device_data, 1, function(err, result) {});

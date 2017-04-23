@@ -3,7 +3,7 @@
     "name": {
         "en": "Mertik Maxitrol"
     },
-    "version": "0.1.0",
+    "version": "0.2.0",
     "compatibility": ">=1.2.0",
     "author": {
         "name": "Ramón Baas"
@@ -23,8 +23,8 @@
 				"interval": 18000,
 				"repetitions": 10,
 				"sensitivity": 0.4,
-				"minimalLength": 12,
-				"maximalLength": 22
+				"minimalLength": 11,
+				"maximalLength": 21
 			}
 		}
 	},
